@@ -1,4 +1,8 @@
 pandas
 matplotlib
 requests
+numpy
 fastf1
+
+# Development / testing
+pytest
