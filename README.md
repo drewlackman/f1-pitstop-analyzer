@@ -1,127 +1,185 @@
 # f1-pitstop-analyzer
 
-A Python tool that analyzes Formula 1 pit stop timing data to evaluate driver and team performance, consistency, and operational efficiency.
+A Python toolkit for analyzing Formula 1 pit stop timing data sourced from the [OpenF1 API](https://openf1.org/).
 
 ## Features
 
-- **Download** pit stop data from the [OpenF1 API](https://openf1.org/) for any race and year
-- **Rich statistics** – fastest, slowest, mean, median, std dev, IQR, per-driver and per-team breakdowns
-- **Outlier detection** using the IQR (Tukey) fence method
-- **Multi-panel visualization** – scatter plot, per-driver box plot, team bar chart, and duration histogram
-- **CLI interface** – fully parameterizable; no need to edit source files
-- **24 unit tests** covering all analysis functions
+| Script | What it does |
+|---|---|
+| `download_pitstops_openf1.py` | Fetch pit stop data for any race/year from OpenF1 |
+| `analyze.py` | Per-driver & per-team stats, outlier detection, 2×2 matplotlib plot |
+| `stints.py` | Reconstruct driver stints, Gantt chart, detect undercut attempts |
+| `compare.py` | Side-by-side team comparison across multiple races, season trend line |
+| `report.py` | Interactive self-contained HTML report (Plotly, hover/zoom) |
+
+**51 unit tests** — no network required (API calls mocked).
 
 ## Requirements
 
 - Python 3.10+
-- See `requirements.txt` for Python package dependencies
-
-Install dependencies:
 
 ```bash
 pip install -r requirements.txt
+# or
+pip install -e ".[dev]"   # after cloning, installs entry-point commands too
 ```
 
 ## Quick Start
 
-### 1. Download pit stop data
+### 1. Download
 
 ```bash
-# Default: 2024 Bahrain Grand Prix (Race session)
-python src/download_pitstops_openf1.py
+# Default: 2024 Bahrain GP (Race)
+make download
 
-# Different race
-python src/download_pitstops_openf1.py --year 2023 --country Italy
-
-# Different session type
-python src/download_pitstops_openf1.py --year 2024 --country Monaco --session Qualifying
+# Any race
+make download YEAR=2023 COUNTRY=Italy
+make download YEAR=2024 COUNTRY="Saudi Arabia" SESSION=Race
 ```
 
-The CSV is saved to `data/pit_<year>_<country>.csv`.
-
-### 2. Analyze and visualize
+Or directly:
 
 ```bash
-# Analyze the default Bahrain 2024 data
-python src/analyze.py
-
-# Analyze a different race
-python src/analyze.py --csv data/pit_2023_italy.csv
-
-# Save plots to a specific directory
-python src/analyze.py --csv data/pit_2024_bahrain.csv --out-dir reports/
-
-# Skip the plot (stats only)
-python src/analyze.py --no-plot
+python src/download_pitstops_openf1.py --year 2024 --country Bahrain
 ```
 
-### Example output
+CSVs are saved to `data/pit_<year>_<country>.csv`.
 
-```
-────────────────────────────────────────────────────
-  2024 Bahrain Grand Prix – Pit Stop Analysis
-────────────────────────────────────────────────────
-  Total stops : 44  (2 outlier(s) flagged)
-  Fastest     : 23.800 s
-  Slowest     : 74.700 s
-  Mean        : 25.214 s  (outliers excluded)
-  Median      : 24.900 s
-  Std dev     :  1.432 s
-  IQR         : 24.200 – 25.900 s
-────────────────────────────────────────────────────
+---
 
-  Per-driver (sorted by median):
-  Driver   Team           Stops    Best  Median    Mean     Std
-  ─────────────────────────────────────────────────────────────
-  HAM      Mercedes           2  24.500  24.550  24.550   0.071
-  LEC      Ferrari            2  23.800  24.900  24.900   1.556
-  ...
+### 2. Analyze a race
 
-  Per-team (sorted by median):
-  Team             Stops    Best  Median    Mean     Std
-  ─────────────────────────────────────────────────────
-  Mercedes             2  24.500  24.550  24.550   0.071
-  Ferrari              2  23.800  24.900  24.900   1.556
-  ...
+```bash
+make analyze                                  # default CSV
+make analyze CSV=data/pit_2023_italy.csv
+
+# With stats exported to JSON
+python src/analyze.py --csv data/pit_2024_bahrain.csv --format json
 ```
 
-The visualization is a 2×2 figure saved alongside the CSV:
+**Outputs:**
+- Console table: total stops, outliers flagged, fastest/slowest/mean/median/std, per-driver and per-team breakdown
+- `data/<stem>_analysis.png` — 2×2 matplotlib figure (scatter, box plot, team bar chart, histogram + KDE)
+- `data/<stem>_drivers.csv` / `_teams.csv` — when `--format csv`
+- `data/<stem>_drivers.json` / `_teams.json` — when `--format json`
 
-| Panel | Description |
-|-------|-------------|
-| Top-left | Scatter: duration vs lap, coloured by team (×  = outlier) |
-| Top-right | Box plot: duration distribution per driver |
-| Bottom-left | Bar chart: median pit stop per team with std error bars |
-| Bottom-right | Histogram + Gaussian KDE of pit durations |
+---
+
+### 3. Stint analysis
+
+```bash
+make stints                                   # default CSV, 57-lap race
+python src/stints.py --csv data/pit_2024_bahrain.csv --total-laps 57
+```
+
+**Outputs:**
+- Console table: each driver's stints (start, end, length in laps)
+- Potential undercut attempts (drivers who pitted within 3 laps of each other)
+- `data/<stem>_stints.png` — Gantt-style horizontal bar chart, coloured by team
+
+---
+
+### 4. Interactive HTML report
+
+```bash
+make report
+python src/report.py --csv data/pit_2024_bahrain.csv
+```
+
+Saves a fully self-contained `data/<stem>_report.html` — open in any browser for hoverable, zoomable versions of all four analysis panels.
+
+---
+
+### 5. Multi-race comparison
+
+```bash
+# Auto-detect all pit_*.csv files in data/
+make compare
+
+# Specify files explicitly
+python src/compare.py --csvs data/pit_2024_bahrain.csv data/pit_2024_saudi_arabia.csv
+```
+
+**Outputs:**
+- Console table: median pit stop per team for each race
+- `data/comparison_teams.png` — grouped bar chart + season trend line chart
+
+---
 
 ## Running Tests
 
 ```bash
+make test
+# or
 python -m pytest tests/ -v
 ```
 
-All 24 tests should pass without a network connection (API calls are mocked).
+All 51 tests pass with no network calls required.
 
 ## Project Structure
 
 ```
 f1-pitstop-analyzer/
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # Runs tests on Python 3.10 / 3.11 / 3.12
 ├── src/
-│   ├── analyze.py                 # Analysis, statistics, and visualization
-│   └── download_pitstops_openf1.py # OpenF1 API download script
+│   ├── __init__.py
+│   ├── analyze.py               # Core analysis, stats, matplotlib visualization
+│   ├── compare.py               # Multi-race comparison
+│   ├── download_pitstops_openf1.py
+│   ├── report.py                # Interactive Plotly HTML report
+│   └── stints.py                # Stint reconstruction + undercut detection
 ├── tests/
-│   ├── test_analyze.py            # Unit tests for analyze.py
-│   └── test_download.py           # Unit tests for download script
+│   ├── conftest.py              # Shared pytest fixtures
+│   ├── test_analyze.py
+│   ├── test_compare.py
+│   ├── test_download.py
+│   └── test_stints.py
 ├── data/
-│   ├── pit_2024_bahrain.csv       # Example downloaded data
-│   └── pit_2024_bahrain_analysis.png  # Example output plot
-├── requirements.txt
-└── README.md
+│   └── pit_2024_bahrain.csv     # Example downloaded data
+├── Makefile                     # Developer workflow shortcuts
+├── pyproject.toml               # Package metadata + entry points
+└── requirements.txt
 ```
+
+## CLI Reference
+
+### `analyze.py`
+| Flag | Default | Description |
+|---|---|---|
+| `--csv` | `data/pit_2024_bahrain.csv` | Input CSV |
+| `--out-dir` | `data` | Output directory |
+| `--format` | _(none)_ | Export stats: `csv` or `json` |
+| `--no-plot` | false | Skip PNG output |
+| `--verbose` | false | Debug logging |
+
+### `stints.py`
+| Flag | Default | Description |
+|---|---|---|
+| `--csv` | `data/pit_2024_bahrain.csv` | Input CSV |
+| `--total-laps` | 57 | Race distance (improves final stint accuracy) |
+| `--undercut-window` | 3 | Lap gap to flag as undercut candidate |
+| `--out-dir` | `data` | Output directory |
+| `--no-plot` | false | Skip Gantt chart |
+
+### `compare.py`
+| Flag | Default | Description |
+|---|---|---|
+| `--csvs` | _(all `pit_*.csv` in `--data-dir`)_ | Race CSV files |
+| `--data-dir` | `data` | Auto-detection directory |
+| `--out-dir` | `data` | Output directory |
+| `--no-plot` | false | Skip comparison chart |
+
+### `report.py`
+| Flag | Default | Description |
+|---|---|---|
+| `--csv` | `data/pit_2024_bahrain.csv` | Input CSV |
+| `--out-dir` | `data` | Output directory |
 
 ## Data Source
 
-Pit stop data is fetched from the [OpenF1 REST API](https://openf1.org/), which provides free, real-time and historical F1 data.
+Pit stop data is fetched from the [OpenF1 REST API](https://openf1.org/) — free, real-time and historical F1 data.
 
 ## License
 

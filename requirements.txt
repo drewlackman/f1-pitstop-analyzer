@@ -2,6 +2,7 @@ pandas
 matplotlib
 requests
 numpy
+plotly
 fastf1
 
 # Development / testing

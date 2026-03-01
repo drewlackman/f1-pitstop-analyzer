@@ -409,6 +409,13 @@ def main(args: argparse.Namespace | None = None) -> None:
         action="store_true",
         help="Enable debug logging.",
     )
+    parser.add_argument(
+        "--format",
+        choices=["csv", "json"],
+        default=None,
+        metavar="FORMAT",
+        help="Export driver and team stats as 'csv' or 'json' alongside the plot.",
+    )
 
     if args is None:
         args = parser.parse_args()
@@ -431,6 +438,27 @@ def main(args: argparse.Namespace | None = None) -> None:
         out_path = Path(args.out_dir) / f"{stem}_analysis.png"
         plot_analysis(df, title, out_path)
         print(f"\nSaved plot → {out_path}")
+
+    if args.format:
+        out_dir = Path(args.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        drv = driver_stats(df)
+        tm = team_stats(df)
+        if args.format == "csv":
+            drv_path = out_dir / f"{stem}_drivers.csv"
+            tm_path = out_dir / f"{stem}_teams.csv"
+            drv.to_csv(drv_path, index=False)
+            tm.to_csv(tm_path, index=False)
+            print(f"Saved driver stats → {drv_path}")
+            print(f"Saved team stats   → {tm_path}")
+        elif args.format == "json":
+            import json
+            drv_path = out_dir / f"{stem}_drivers.json"
+            tm_path = out_dir / f"{stem}_teams.json"
+            drv_path.write_text(json.dumps(drv.to_dict(orient="records"), indent=2))
+            tm_path.write_text(json.dumps(tm.to_dict(orient="records"), indent=2))
+            print(f"Saved driver stats → {drv_path}")
+            print(f"Saved team stats   → {tm_path}")
 
 
 if __name__ == "__main__":

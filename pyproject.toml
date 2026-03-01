@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "f1-pitstop-analyzer"
+version = "0.2.0"
+description = "Analyze Formula 1 pit stop timing data from the OpenF1 API"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "matplotlib",
+    "requests",
+    "numpy",
+    "plotly",
+    "fastf1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+f1-download = "src.download_pitstops_openf1:main"
+f1-analyze  = "src.analyze:main"
+f1-stints   = "src.stints:main"
+f1-compare  = "src.compare:main"
+f1-report   = "src.report:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
